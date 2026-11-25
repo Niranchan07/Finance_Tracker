@@ -1,4 +1,4 @@
-import streamlit as st
+*import streamlit as st
 import sqlite3
 import calendar
 from datetime import datetime, date
@@ -6,6 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="NOVA FINANCE", page_icon="◆", layout="wide")
+
 
 class FinanceDatabase:
     def __init__(self, db_name="finance_tracker.db"):
@@ -168,9 +169,21 @@ CATEGORIES = [
     "Healthcare", "Entertainment", "Credit Card Payment", "Savings", "Other"
 ]
 
+# High-Contrast Dark Fintech Styling (prevents dark text on dark backgrounds)
 st.markdown("""
 <style>
-    .stApp { background-color: #0b0f19; color: #f8fafc; }
+    .stApp {
+        background-color: #0b0f19;
+        color: #f8fafc;
+    }
+    section[data-testid="stSidebar"] {
+        background-color: #111827;
+        border-right: 1px solid #263042;
+    }
+    section[data-testid="stSidebar"] * {
+        color: #f8fafc !important;
+    }
+    /* Metric Cards */
     div[data-testid="stMetric"] {
         background-color: #111827;
         border: 1px solid #263042;
@@ -178,11 +191,43 @@ st.markdown("""
         padding: 14px;
         border-radius: 8px;
     }
+    div[data-testid="stMetricLabel"] p {
+        color: #94a3b8 !important;
+        font-weight: 700 !important;
+        font-size: 0.8rem !important;
+    }
+    div[data-testid="stMetricValue"] div {
+        color: #f8fafc !important;
+        font-weight: 700 !important;
+    }
+    /* Labels, Headings & Tabs */
+    h1, h2, h3, label p, .stMarkdown p {
+        color: #f8fafc !important;
+    }
+    button[data-baseweb="tab"] p {
+        color: #cbd5e1 !important;
+        font-weight: 600 !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] p {
+        color: #06b6d4 !important;
+    }
+    /* Buttons */
+    div.stButton > button, div.stFormSubmitButton > button, div.stDownloadButton > button {
+        background-color: #8b5cf6 !important;
+        color: #ffffff !important;
+        border: none !important;
+        font-weight: 700 !important;
+        border-radius: 6px !important;
+    }
+    div.stButton > button:hover, div.stFormSubmitButton > button:hover {
+        background-color: #7c3aed !important;
+        color: #ffffff !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("◆ NOVA FINANCE")
-st.caption("PORTFOLIO • CASHFLOW • SUBSCRIPTIONS")
+st.markdown("<h1 style='color:#f8fafc; margin-bottom:0;'>◆ NOVA <span style='color:#8b5cf6;'>FINANCE</span></h1>", unsafe_allow_html=True)
+st.markdown("<p style='color:#94a3b8; font-size:0.85rem; letter-spacing:1px;'>PORTFOLIO • CASHFLOW • SUBSCRIPTIONS</p>", unsafe_allow_html=True)
 
 acc_balances = db.get_account_balances()
 income, expense, net_worth, month_expense = db.get_summary()
@@ -321,12 +366,14 @@ with tab_charts:
             cats = [r[0] for r in breakdown]
             amts = [r[1] for r in breakdown]
             colors = ["#06b6d4", "#8b5cf6", "#f43f5e", "#10b981", "#f59e0b", "#3b82f6", "#ec4899"]
-            ax1.pie(
+            wedges, texts, autotexts = ax1.pie(
                 amts, labels=cats, autopct="%1.1f%%", startangle=140,
                 colors=colors[:len(cats)],
                 wedgeprops={"width": 0.44, "edgecolor": "#111827", "linewidth": 2},
-                textprops={"color": "#f8fafc", "fontsize": 9}
+                textprops={"color": "#f8fafc", "fontsize": 9, "fontweight": "bold"}
             )
+            for at in autotexts:
+                at.set_color("#0b0f19")
             ax1.set_title("EXPENSE ALLOCATION", color="#06b6d4", fontweight="bold")
             st.pyplot(fig1)
         else:
@@ -344,10 +391,14 @@ with tab_charts:
             ax2.bar([i - 0.18 for i in x], inc, width=0.36, label="Income", color="#10b981")
             ax2.bar([i + 0.18 for i in x], exp, width=0.36, label="Expense", color="#f43f5e")
             ax2.set_xticks(list(x))
-            ax2.set_xticklabels(months, color="#94a3b8")
-            ax2.tick_params(axis="y", colors="#94a3b8")
+            ax2.set_xticklabels(months, color="#f8fafc")
+            ax2.tick_params(axis="y", colors="#f8fafc")
+            for spine in ["top", "right"]:
+                ax2.spines[spine].set_visible(False)
+            for spine in ["left", "bottom"]:
+                ax2.spines[spine].set_color("#334155")
             ax2.set_title("MONTHLY CASHFLOW", color="#8b5cf6", fontweight="bold")
-            ax2.legend(facecolor="#1f2937", labelcolor="#f8fafc")
+            ax2.legend(facecolor="#1f2937", edgecolor="#334155", labelcolor="#f8fafc")
             st.pyplot(fig2)
         else:
             st.info("Add transactions to see monthly cashflow.")
