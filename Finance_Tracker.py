@@ -1,3 +1,4 @@
+
 import streamlit as st
 import sqlite3
 import calendar
@@ -71,7 +72,8 @@ class FinanceDatabase:
         if filter_category != "All":
             query += " AND category = ?"
             params.append(filter_category)
-        query += " ORDER BY date DESC, id DESC"
+        # ORDER BY id ASC adds each new transaction one by one at the bottom
+        query += " ORDER BY id ASC"
         self.cursor.execute(query, params)
         return self.cursor.fetchall()
 
@@ -84,7 +86,7 @@ class FinanceDatabase:
 
     def get_recurring_bills(self):
         self.cursor.execute(
-            "SELECT id, name, account, category, amount, due_day, last_paid_month FROM recurring_bills ORDER BY due_day ASC"
+            "SELECT id, name, account, category, amount, due_day, last_paid_month FROM recurring_bills ORDER BY id ASC"
         )
         return self.cursor.fetchall()
 
@@ -169,7 +171,7 @@ CATEGORIES = [
     "Healthcare", "Entertainment", "Credit Card Payment", "Savings", "Other"
 ]
 
-# High-Contrast Dark Fintech Styling (prevents dark text on dark backgrounds)
+# Clean Dark Fintech Styling & Input Overlap Fix
 st.markdown("""
 <style>
     .stApp {
@@ -180,27 +182,72 @@ st.markdown("""
         background-color: #111827;
         border-right: 1px solid #263042;
     }
-    section[data-testid="stSidebar"] * {
+    section[data-testid="stSidebar"] label p,
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3,
+    section[data-testid="stSidebar"] span {
         color: #f8fafc !important;
     }
-    /* Metric Cards */
-    div[data-testid="stMetric"] {
+
+    /* Fix Input & Number Box Text Overlap */
+    div[data-baseweb="input"],
+    div[data-baseweb="base-input"],
+    div[data-baseweb="select"] > div {
+        background-color: #1f2937 !important;
+        border: 1px solid #374151 !important;
+        border-radius: 6px !important;
+    }
+    input[type="number"],
+    input[type="text"],
+    div[data-baseweb="input"] input {
+        color: #f8fafc !important;
+        background-color: #1f2937 !important;
+        padding: 8px 12px !important;
+        font-size: 0.95rem !important;
+        -webkit-text-fill-color: #f8fafc !important;
+    }
+    /* Style +/- stepper buttons cleanly so they don't overlap text */
+    button[data-testid="stNumberInputStepDown"],
+    button[data-testid="stNumberInputStepUp"] {
+        background-color: #263042 !important;
+        color: #06b6d4 !important;
+        border-left: 1px solid #374151 !important;
+        padding: 0 8px !important;
+    }
+    div[data-baseweb="select"] span {
+        color: #f8fafc !important;
+    }
+
+    /* Full-Visibility KPI Cards (never truncates numbers with ...) */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 12px;
+        margin-top: 10px;
+        margin-bottom: 16px;
+    }
+    .kpi-card {
         background-color: #111827;
         border: 1px solid #263042;
-        border-left: 4px solid #8b5cf6;
-        padding: 14px;
         border-radius: 8px;
+        padding: 14px 16px;
     }
-    div[data-testid="stMetricLabel"] p {
-        color: #94a3b8 !important;
-        font-weight: 700 !important;
-        font-size: 0.8rem !important;
+    .kpi-title {
+        color: #94a3b8;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        margin-bottom: 6px;
     }
-    div[data-testid="stMetricValue"] div {
-        color: #f8fafc !important;
-        font-weight: 700 !important;
+    .kpi-value {
+        font-size: 1.35rem;
+        font-weight: 800;
+        white-space: nowrap;
+        overflow-x: auto;
     }
-    /* Labels, Headings & Tabs */
+
+    /* Headings & Tabs */
     h1, h2, h3, label p, .stMarkdown p {
         color: #f8fafc !important;
     }
@@ -211,6 +258,7 @@ st.markdown("""
     button[data-baseweb="tab"][aria-selected="true"] p {
         color: #06b6d4 !important;
     }
+
     /* Buttons */
     div.stButton > button, div.stFormSubmitButton > button, div.stDownloadButton > button {
         background-color: #8b5cf6 !important;
@@ -233,12 +281,38 @@ acc_balances = db.get_account_balances()
 income, expense, net_worth, month_expense = db.get_summary()
 budget = db.get_budget()
 
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("BANK ACCOUNT", f"₹ {acc_balances['Bank']:,.2f}")
-c2.metric("CASH WALLET", f"₹ {acc_balances['Cash']:,.2f}")
-c3.metric("CREDIT CARD", f"₹ {acc_balances['Credit Card']:,.2f}")
-c4.metric("NET WORTH", f"₹ {net_worth:,.2f}")
-c5.metric("MONTHLY BUDGET", f"₹ {month_expense:,.0f} / ₹ {budget:,.0f}")
+budget_color = "#f43f5e" if month_expense > budget else "#10b981"
+net_color = "#a78bfa" if net_worth >= 0 else "#f43f5e"
+
+# Full-amount KPI Cards (shows complete values for Bank, Cash, Credit Card, Expense, Balance, Budget)
+st.markdown(f"""
+<div class="kpi-grid">
+    <div class="kpi-card" style="border-left: 4px solid #06b6d4;">
+        <div class="kpi-title">BANK ACCOUNT BALANCE</div>
+        <div class="kpi-value" style="color: #06b6d4;">₹ {acc_balances['Bank']:,.2f}</div>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid #10b981;">
+        <div class="kpi-title">CASH WALLET BALANCE</div>
+        <div class="kpi-value" style="color: #10b981;">₹ {acc_balances['Cash']:,.2f}</div>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid #f59e0b;">
+        <div class="kpi-title">CREDIT CARD BALANCE</div>
+        <div class="kpi-value" style="color: #f59e0b;">₹ {acc_balances['Credit Card']:,.2f}</div>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid #f43f5e;">
+        <div class="kpi-title">TOTAL EXPENSE</div>
+        <div class="kpi-value" style="color: #f43f5e;">₹ {expense:,.2f}</div>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid #8b5cf6;">
+        <div class="kpi-title">TOTAL NET BALANCE</div>
+        <div class="kpi-value" style="color: {net_color};">₹ {net_worth:,.2f}</div>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid {budget_color};">
+        <div class="kpi-title">MONTHLY BUDGET (SPENT / LIMIT)</div>
+        <div class="kpi-value" style="color: {budget_color};">₹ {month_expense:,.0f} / ₹ {budget:,.0f}</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 st.divider()
 
@@ -249,15 +323,15 @@ with st.sidebar:
         account = st.selectbox("Account", ACCOUNTS)
         t_date = st.date_input("Date", value=date.today())
         category = st.selectbox("Category", CATEGORIES, index=3)
-        amount = st.number_input("Amount (₹)", min_value=0.01, step=100.0)
-        desc = st.text_input("Note")
+        amount = st.number_input("Amount (₹)", min_value=0.01, value=100.00, step=100.0, format="%.2f")
+        desc = st.text_input("Note", placeholder="Enter description...")
         if st.form_submit_button("RECORD TRANSACTION", use_container_width=True):
             db.add_transaction(t_date.strftime("%Y-%m-%d"), account, t_type, category, amount, desc)
             st.rerun()
 
     st.divider()
     st.subheader("🎯 Monthly Spend Cap")
-    new_budget = st.number_input("Budget Limit (₹)", min_value=0.0, value=budget, step=1000.0)
+    new_budget = st.number_input("Budget Limit (₹)", min_value=0.0, value=budget, step=1000.0, format="%.2f")
     if st.button("UPDATE BUDGET", use_container_width=True):
         db.set_budget(new_budget)
         st.rerun()
@@ -278,14 +352,31 @@ with tab_ledger:
     if rows:
         df = pd.DataFrame(rows, columns=["DB_ID", "Date", "Account", "Type", "Category", "Amount", "Description"])
         df.insert(0, "No.", range(1, len(df) + 1))
-        st.dataframe(df.drop(columns=["DB_ID"]), use_container_width=True, hide_index=True)
+
+        display_df = df.drop(columns=["DB_ID"]).copy()
+        display_df["Amount"] = display_df["Amount"].apply(lambda x: f"₹ {x:,.2f}")
+
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "No.": st.column_config.NumberColumn("No.", width="small"),
+                "Date": st.column_config.TextColumn("Date", width="small"),
+                "Account": st.column_config.TextColumn("Account", width="small"),
+                "Type": st.column_config.TextColumn("Type", width="small"),
+                "Category": st.column_config.TextColumn("Category", width="medium"),
+                "Amount": st.column_config.TextColumn("Amount", width="medium"),
+                "Description": st.column_config.TextColumn("Description", width="large"),
+            }
+        )
 
         col_del, col_csv = st.columns([2, 1])
         with col_del:
             del_choice = st.selectbox(
                 "Select row to delete",
                 options=df["DB_ID"].tolist(),
-                format_func=lambda x: f"#{df.loc[df['DB_ID']==x, 'No.'].values[0]} — {df.loc[df['DB_ID']==x, 'Category'].values[0]} (₹{df.loc[df['DB_ID']==x, 'Amount'].values[0]:,.2f})"
+                format_func=lambda x: f"#{df.loc[df['DB_ID']==x, 'No.'].values[0]} — {df.loc[df['DB_ID']==x, 'Category'].values[0]} (₹ {df.loc[df['DB_ID']==x, 'Amount'].values[0]:,.2f})"
             )
             if st.button("DELETE SELECTED"):
                 db.delete_transaction(del_choice)
@@ -293,7 +384,7 @@ with tab_ledger:
         with col_csv:
             st.download_button(
                 "EXPORT CSV",
-                data=df.drop(columns=["DB_ID"]).to_csv(index=False).encode("utf-8"),
+                data=display_df.to_csv(index=False).encode("utf-8"),
                 file_name=f"finance_export_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
                 use_container_width=True
@@ -303,11 +394,11 @@ with tab_ledger:
 
 with tab_bills:
     with st.form("bill_form", clear_on_submit=True):
-        b1, b2, b3, b4, b5 = st.columns([2, 1, 1.5, 1, 1])
-        b_name = b1.text_input("Bill Name")
+        b1, b2, b3, b4, b5 = st.columns([2, 1, 1.5, 1.2, 1])
+        b_name = b1.text_input("Bill Name", placeholder="e.g. Rent / Netflix")
         b_acc = b2.selectbox("Account", ACCOUNTS)
         b_cat = b3.selectbox("Category", CATEGORIES, index=5)
-        b_amt = b4.number_input("Amount (₹)", min_value=1.0, step=100.0)
+        b_amt = b4.number_input("Amount (₹)", min_value=1.0, value=500.0, step=100.0, format="%.2f")
         b_day = b5.number_input("Due Day", min_value=1, max_value=31, value=5)
         if st.form_submit_button("+ ADD BILL"):
             if b_name.strip():
@@ -344,7 +435,7 @@ with tab_bills:
         selected_bill = st.selectbox(
             "Select Bill",
             options=bdf["DB_ID"].tolist(),
-            format_func=lambda x: f"{bdf.loc[bdf['DB_ID']==x, 'Bill'].values[0]} ({bdf.loc[bdf['DB_ID']==x, 'Status'].values[0]})"
+            format_func=lambda x: f"{bdf.loc[bdf['DB_ID']==x, 'Bill'].values[0]} — {bdf.loc[bdf['DB_ID']==x, 'Amount'].values[0]} ({bdf.loc[bdf['DB_ID']==x, 'Status'].values[0]})"
         )
         p_col, r_col = st.columns(2)
         if p_col.button("✓ PAY SELECTED BILL", use_container_width=True):
